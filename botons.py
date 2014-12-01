@@ -1,8 +1,9 @@
 #!/usr/bin/python
 # -*- coding: latin-1
 
-# Gestió botons connectats al GPIO
+# Gestió dels botons connectats al GPIO
 # Raspberry Pi, Camera module and three hardware buttons.
+# Button1: Shutdown Rpi. Button2: Selfie photo. Button3: Start/Stop video recording.
 
 # Executar amb sudo python botons.py ja que calen permisos root per accedir a GPIO
 # Per executar-se al arrancar, sudo nano /etc/rc.local i afegir abans del exit(0):
@@ -25,19 +26,19 @@ VIDEO_FRAMERATE = 24
 	# 16:9 => (1920, 1080), (1296, 730), (1280, 720)
 	# (1024, 768) 24fps : 1 minut +/- 50mb. 1 hora +/- 3gb
 
-GPIO_PIN_BOTO1 = 27
-GPIO_PIN_BOTO2 = 17
-GPIO_PIN_BOTO3 = 26
+GPIO_PIN_BOTO1 = 27  # Apagar
+GPIO_PIN_BOTO2 = 17  # Selfie
+GPIO_PIN_BOTO3 = 26  # Vídeo
 GPIO_PIN_CAMERA_LED = 32 # Use 5 for Model A/B and 32 for Model B+
 
-BOUNCE_TIME_FOTO = 7000 # microsegons d'espera entre clics per evitar bouncing (rebre un mateix clic vàries vegades!)
-# Cal ajustar-ho en funció de la durada de clic_boto()
-# Ex: amb compte_enrera(segons=5) cal BOUNCE_TIME >= 7s (amb 6 a vegades va bé altres fa doble clic)
+# Microsegons d'espera entre clics per evitar bouncing (rebre un mateix clic vàries vegades!)
+# Cal ajustar-ho en funció de la durada de l'acció.
+BOUNCE_TIME_FOTO = 7000 # al haver-hi un compte enrera de 5 segons cal més temps que amb el vídeo
 BOUNCE_TIME_VIDEO = 3000
 
 
 def compte_enrera(segons):
-	# pampalluguejar led
+	# pampalluguejar led de la càmera
 	for n in range(0, segons):
 		GPIO.output(GPIO_PIN_CAMERA_LED, False)
 		time.sleep(.5)
@@ -103,7 +104,9 @@ def convertir_mp4(espera=False):
 
 try:
 	estat = 0  # 0:res  1:foto en curs  2:vídeo en curs
+	apagar = False
 
+	GPIO.setwarnings(False)
 	GPIO.setmode(GPIO.BCM)
 	
 	GPIO.setup(GPIO_PIN_BOTO1, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -115,7 +118,7 @@ try:
 	GPIO.add_event_detect(GPIO_PIN_BOTO3, GPIO.FALLING, callback=clic_video, bouncetime=BOUNCE_TIME_VIDEO)
 	
 	GPIO.wait_for_edge(GPIO_PIN_BOTO1, GPIO.FALLING)
-	estat = 9  # apagar
+	apagar = True
 
 except KeyboardInterrupt:
 	print ""
@@ -133,5 +136,5 @@ finally:
 	if 'subproces' in globals():
 		subproces.wait()
 
-	if estat == 9:
+	if apagar:
 		os.system("sudo shutdown -h now")
